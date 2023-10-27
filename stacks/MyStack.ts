@@ -1,6 +1,7 @@
 import { StackContext, Service } from "sst/constructs";
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
+import { SubnetType, Vpc } from "aws-cdk-lib/aws-ec2";
 
 export function API({ stack }: StackContext) {
   const key = StringParameter.valueForStringParameter(stack, 'baselime-key');
@@ -11,6 +12,20 @@ export function API({ stack }: StackContext) {
       BASELIME_KEY: key
     },
     cdk: {
+      fargateService: {
+        assignPublicIp: true,
+        circuitBreaker: { rollback: true },
+      },
+      vpc: new Vpc(stack, 'sst-vpc', { 
+        subnetConfiguration: [
+          {
+            name: "public-subnet",
+            subnetType: SubnetType.PUBLIC,
+            cidrMask: 24,
+          },
+        ],
+        natGateways: 0
+      }),
       container: {
         logging: new ecs.FireLensLogDriver({
           options: {
@@ -26,7 +41,6 @@ export function API({ stack }: StackContext) {
       }
     }
   });
-
   stack.addOutputs({
     URL: service.url
   })
